@@ -1,0 +1,5 @@
+train: C:/Users/USER/Desktop/test-hugging/main/model/train/images  # เส้นทางของภาพฝึก
+val: C:/Users/USER/Desktop/test-hugging/main/model/val/images      # เส้นทางของภาพทดสอบ
+
+nc: 8  # จำนวนคลาส
+names: ['posts', '0', 'activity', 'content', 'header', 'left', 'right', 'topic']  # ชื่อของคลาส
