@@ -1,46 +1,32 @@
-import json
+import torch
+from pathlib import Path
+from PIL import Image
+import numpy as np
+import cv2
 
-# โหลดข้อมูลจากไฟล์ COCO JSON
-with open('C:/Users/USER/Desktop/test-hugging/main/model/train/_annotations.coco.json') as f:
-    coco_data = json.load(f)
+# โหลดโมเดล
+model = torch.load('yolov5/runs/train/exp/weights/best.pt', map_location=torch.device('cpu'))['model'].float()  # โหลดโมเดล
+model.eval()  # ตั้งค่าโมเดลเป็นโหมดทดสอบ
 
-# ดูโครงสร้างของไฟล์
-print(coco_data.keys())
+# อ่านภาพ
+img = cv2.imread('test_img/test.png')  # อ่านภาพ
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # แปลงภาพจาก BGR เป็น RGB
 
-# ดูข้อมูล categories (classes)
-categories = coco_data['categories']
-print(categories)
+# ปรับขนาดภาพให้เหมาะสมกับ YOLOv5
+img_resized = cv2.resize(img_rgb, (640, 640))  # ปรับขนาดภาพเป็น 640x640
 
-import os
-import json
+# แปลงภาพเป็น tensor
+img_tensor = torch.from_numpy(img_resized).float()  # เปลี่ยนเป็น tensor
+img_tensor = img_tensor.permute(2, 0, 1)  # แปลงเป็นรูปแบบ CxHxW
+img_tensor /= 255.0  # สเกลภาพให้ค่าอยู่ระหว่าง 0-1
+img_tensor = img_tensor.unsqueeze(0)  # เพิ่มมิติ batch
 
-# โหลดข้อมูลจากไฟล์ COCO JSON
-with open('C:/Users/USER/Desktop/test-hugging/main/model/train/_annotations.coco.json') as f:
-    coco_data = json.load(f)
+# ทำการทำนาย
+with torch.no_grad():  # ไม่ต้องคำนวณ gradients ในระหว่างการทำนาย
+    results = model(img_tensor)  # ทำนายบนภาพ
 
-# โฟลเดอร์ที่เก็บภาพ
-image_dir = 'C:/Users/USER/Desktop/test-hugging/main/model/train/images'
+# แสดงผลลัพธ์
+results.show()  # แสดงผล
 
-# โฟลเดอร์ที่จะเก็บไฟล์ label (YOLO format)
-output_dir = 'C:/Users/USER/Desktop/test-hugging/main/model/train/labels'
-os.makedirs(output_dir, exist_ok=True)
-
-# แปลงข้อมูล annotation ให้เป็น YOLO format
-for annotation in coco_data['annotations']:
-    image_id = annotation['image_id']
-    bbox = annotation['bbox']  # [x, y, width, height]
-    class_id = annotation['category_id']
-
-    # คำนวณค่าที่ normalize ของ Bounding Box
-    image_width = coco_data['images'][image_id]['width']
-    image_height = coco_data['images'][image_id]['height']
-    
-    x_center = (bbox[0] + bbox[2] / 2) / image_width
-    y_center = (bbox[1] + bbox[3] / 2) / image_height
-    width = bbox[2] / image_width
-    height = bbox[3] / image_height
-
-    # เขียนข้อมูล label ลงในไฟล์ .txt
-    label_file = os.path.join(output_dir, f'{image_id}.txt')
-    with open(label_file, 'a') as f:
-        f.write(f'{class_id} {x_center} {y_center} {width} {height}\n')
+# หรือบันทึกผล
+results.save()  # บันทึกภาพที่มี bounding box
